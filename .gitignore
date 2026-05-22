@@ -1,0 +1,45 @@
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Logs
+*.log
+logs/
+
+# Node / tooling
+node_modules/
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Apps Script / clasp
+.clasp.json
+.clasp.dev.json
+.claspignore
+
+# Secrets / local config
+.env
+.env.*
+credentials.json
+*.secret
+
+# Archives / temp
+*.zip
+*.tar
+*.gz
+*.7z
+tmp/
+temp/
+
+# Generated docs / exports
+*.pdf
+*.docx
