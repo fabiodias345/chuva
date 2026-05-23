@@ -185,3 +185,146 @@ Registrar:
 ---
 # Objetivo Final
 Criar um módulo climático inteligente integrado ao sistema institucional de manutenção predial utilizando Google Workspace e Google Apps Script para automatizar validações pós-chuva e reduzir reincidências de vazamentos.
+
+---
+
+# Arquitetura Definida do Projeto
+
+## Decisao Principal
+
+O sistema devera usar arquitetura mobile offline-first para atender tecnicos em campo.
+
+```text
+Flutter APK offline-first
+↓
+Banco local no celular
+↓
+Fila de sincronizacao
+↓
+Google Apps Script Web App
+↓
+Google Sheets + Google Drive + Gmail + Calendar
+```
+
+---
+
+## Restricao de Backend
+
+O backend devera ser 100% baseado em Google Apps Script.
+
+Nao utilizar:
+
+```text
+Supabase
+Firebase
+Backend externo
+Servidor proprio
+```
+
+Regra:
+
+```text
+Flutter nunca acessa Sheets ou Drive diretamente.
+Flutter comunica apenas com o Google Apps Script.
+```
+
+---
+
+## App do Tecnico
+
+O aplicativo Flutter devera funcionar mesmo sem internet.
+
+Funcionalidades offline obrigatorias:
+
+- visualizar chamados ja baixados;
+- preencher texto da execucao;
+- atualizar status;
+- tirar fotos;
+- anexar fotos;
+- finalizar processo localmente;
+- manter pendencias em fila de sincronizacao;
+- enviar tudo ao Google quando a internet voltar.
+
+---
+
+## Backend Google Apps Script
+
+O Google Apps Script sera responsavel por:
+
+- receber dados do app via JSON;
+- validar usuario e permissao;
+- gravar chamados no Google Sheets;
+- registrar historico;
+- salvar fotos no Google Drive;
+- enviar e-mails pelo Gmail;
+- criar eventos ou lembretes no Calendar quando necessario;
+- executar trigger diario de monitoramento climatico;
+- consultar Open-Meteo;
+- criar validacoes pos-chuva;
+- registrar logs de sincronizacao.
+
+---
+
+## Banco Institucional
+
+Persistencia principal:
+
+```text
+Google Sheets
+```
+
+Abas previstas:
+
+```text
+usuarios
+predios
+chamados
+historico_chamado
+fotos_chamado
+eventos_chuva
+validacoes_pos_chuva
+sync_logs
+```
+
+---
+
+## Armazenamento de Fotos
+
+As fotos deverao ser armazenadas no Google Drive.
+
+Estrutura sugerida:
+
+```text
+Sistema_Telhados/
+  Chamados/
+    CH-0001/
+      abertura/
+      execucao/
+      conclusao/
+  Relatorios/
+  Backup/
+```
+
+---
+
+## Sincronizacao Offline
+
+O app devera manter uma fila local de operacoes pendentes.
+
+Exemplos:
+
+```text
+criar_chamado
+atualizar_status
+registrar_execucao
+enviar_foto
+finalizar_chamado
+```
+
+Quando a internet voltar:
+
+- o app envia a fila para o Apps Script;
+- o Apps Script valida os dados;
+- o Apps Script grava em Sheets e Drive;
+- o app marca os itens como sincronizados;
+- falhas permanecem pendentes para nova tentativa.
