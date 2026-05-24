@@ -1,274 +1,416 @@
-# Sistema de Gestao de Chamados de Telhados
+# 🏛️ Sistema de Gestão de Chamados de Telhados
 
-Projeto para controle de chamados de manutencao de telhados, com foco em vazamentos, reincidencias apos chuva e validacao tecnica em campo.
-
-O sistema sera usado principalmente por tecnicos em campo, com suporte a uso offline no celular e sincronizacao posterior com o Google Workspace.
-
----
-
-## Objetivo
-
-Centralizar o processo de manutencao de telhados da Universidade Estadual de Londrina, permitindo:
-
-- abertura e acompanhamento de chamados;
-- registro tecnico da execucao;
-- anexos de fotos;
-- atualizacao de status em campo;
-- funcionamento offline no celular;
-- sincronizacao com Google Sheets e Google Drive;
-- monitoramento climatico automatico;
-- validacao pos-chuva para detectar reincidencias.
+**Projeto:** Universidade Estadual de Londrina  
+**Objetivo:** Centralizar manutenção de telhados com vazamentos, validação técnica pós-chuva e sincronização com Google Workspace  
+**Status:** 🔨 Em desenvolvimento (fase 1: estrutura base)
 
 ---
 
-## Arquitetura
+## 📋 Visão Geral
 
-Arquitetura definida:
+Sistema institucional para gerenciamento de chamados de manutenção de telhados com foco em:
 
-```text
-Flutter APK offline-first
-|
-v
-Banco local no celular
-|
-v
-Fila de sincronizacao
-|
-v
-Google Apps Script Web App
-|
-v
-Google Sheets + Google Drive + Gmail + Calendar
+- ✅ Abertura e acompanhamento de chamados offline
+- ✅ Registro técnico da execução com fotos
+- ✅ Sincronização automática com Google Workspace
+- ✅ Monitoramento climático pós-conclusão
+- ✅ Detecção de reincidências após chuva
+
+**Usuários:**
+- Técnicos em campo (app mobile offline-first)
+- Gestores (dashboard web via HTML Service)
+- Administradores (configuração)
+
+---
+
+## 🏗️ Arquitetura
+
+### Fluxo Geral
+
+```
+┌─────────────┐
+│ Flutter App │ (offline-first no celular)
+│  (mobile)   │
+└──────┬──────┘
+       │
+       ↓ (com internet)
+┌──────────────────────┐
+│  Banco Local          │
+│  (SQLite no device)   │
+└──────┬───────────────┘
+       │
+       ↓ (fila de sincronização)
+┌──────────────────────────────┐
+│  Google Apps Script          │
+│  (API intermediária)         │
+└──────┬───────────────────────┘
+       │
+       ├─→ Google Sheets (dados)
+       ├─→ Google Drive (fotos)
+       ├─→ Gmail (notificações)
+       ├─→ Calendar (eventos)
+       └─→ Open-Meteo API (clima)
 ```
 
-Regra principal:
+### Regra Arquitetônica Principal
 
-```text
-Flutter nunca acessa Sheets ou Drive diretamente.
-Flutter comunica apenas com o Google Apps Script.
 ```
+⚠️ Flutter NUNCA acessa Sheets/Drive diretamente
+   Flutter → Google Apps Script → Google Workspace
+```
+
+### Fluxo Offline
+
+1. Técnico trabalha offline (sem internet)
+2. Dados salvos localmente em SQLite
+3. Quando houver internet → fila de sincronização ativa
+4. GAS valida, processa e distribui para Sheets/Drive
+5. App marca itens como sincronizados
 
 ---
 
-## Tecnologias
+## 📁 Estrutura do Projeto
 
-### Aplicativo
-
-- Flutter
-- Dart
-- Banco local no aparelho
-- Camera e anexos
-- Sincronizacao offline
-
-### Backend
-
-- Google Apps Script
-- Google Sheets
-- Google Drive
-- Gmail
-- Google Calendar
-- Open-Meteo API
-
-### Nao utilizar
-
-```text
-Supabase
-Firebase
-Backend externo
-Servidor proprio
 ```
-
----
-
-## Estrutura Inicial do Projeto
-
-```text
 Chuva/
-├── README.md
-├── prd.md
-├── mem.md
+├── README.md                    # Este arquivo
+├── prd.md                       # Product Requirements Document
+├── mem.md                       # Notas de memória
 │
 ├── docs/
-│   ├── arquitetura.md
-│   ├── api.md
-│   └── planilhas.md
+│   ├── arquitetura.md           # Diagrama técnico e decisões
+│   ├── api.md                   # Contrato de API (Flutter ↔ GAS)
+│   └── planilhas.md             # Estrutura das sheets (TODO)
 │
-├── app/
+├── app/                         # 📱 APLICATIVO FLUTTER
 │   ├── pubspec.yaml
 │   ├── android/
 │   ├── ios/
+│   ├── web/
 │   └── lib/
 │       ├── main.dart
 │       ├── config.dart
-│       ├── models/
+│       │
+│       ├── models/              # Entidades de domínio
 │       │   ├── chamado.dart
 │       │   ├── foto.dart
-│       │   └── sync_item.dart
-│       ├── services/
-│       │   ├── api_service.dart
-│       │   ├── local_db_service.dart
-│       │   ├── sync_service.dart
-│       │   └── camera_service.dart
-│       └── pages/
-│           ├── login_page.dart
-│           ├── chamados_page.dart
-│           ├── chamado_detalhe_page.dart
-│           ├── execucao_page.dart
-│           └── sync_page.dart
+│       │   ├── usuario.dart
+│       │   └── predio.dart
+│       │
+│       ├── repositories/        # ⚠️ ÚNICO acesso a DB local
+│       │   ├── chamado_repository.dart
+│       │   ├── foto_repository.dart
+│       │   └── sync_repository.dart
+│       │
+│       ├── services/            # Lógica de negócio
+│       │   ├── chamado_service.dart
+│       │   ├── api_service.dart      # HTTP ↔ GAS
+│       │   ├── sync_service.dart     # Fila de sincronização
+│       │   ├── local_db_service.dart # SQLite wrapper
+│       │   ├── camera_service.dart
+│       │   └── auth_service.dart
+│       │
+│       ├── providers/           # State management
+│       │   ├── chamado_provider.dart
+│       │   └── sync_provider.dart
+│       │
+│       ├── pages/               # UI/Screens
+│       │   ├── login_page.dart
+│       │   ├── chamados_page.dart
+│       │   ├── chamado_detalhe_page.dart
+│       │   ├── execucao_page.dart
+│       │   ├── sync_page.dart
+│       │   └── config_page.dart
+│       │
+│       ├── widgets/             # Componentes reutilizáveis
+│       │   ├── chamado_card.dart
+│       │   ├── status_badge.dart
+│       │   └── foto_gallery.dart
+│       │
+│       └── utils/
+│           ├── constants.dart
+│           └── helpers.dart
 │
-├── gas/
+├── gas/                         # ⚙️ GOOGLE APPS SCRIPT
 │   ├── appsscript.json
 │   └── src/
-│       ├── main.gs
-│       ├── config.gs
-│       ├── api.gs
-│       ├── chamados.gs
-│       ├── sync.gs
-│       ├── drive.gs
-│       ├── clima.gs
-│       ├── email.gs
-│       └── utils.gs
+│       ├── main.gs              # Entry point
+│       │
+│       ├── controllers/         # Rotas HTTP
+│       │   ├── chamado_controller.gs
+│       │   ├── sync_controller.gs
+│       │   ├── foto_controller.gs
+│       │   └── config_controller.gs
+│       │
+│       ├── services/            # Lógica de negócio
+│       │   ├── chamado_service.gs
+│       │   ├── sync_service.gs
+│       │   ├── clima_service.gs
+│       │   ├── email_service.gs
+│       │   └── notificacao_service.gs
+│       │
+│       ├── repositories/        # ⚠️ ÚNICO acesso a Sheets/Drive
+│       │   ├── chamado_repository.gs
+│       │   ├── foto_repository.gs
+│       │   ├── usuario_repository.gs
+│       │   └── predio_repository.gs
+│       │
+│       ├── config.gs            # Configurações
+│       ├── utils.gs             # Funções auxiliares
+│       └── validators.gs        # Validação de entrada
 │
-└── sheets/
-    ├── schema.md
-    └── seed.md
+├── sheets/                      # 📊 ESTRUTURA DAS PLANILHAS
+│   ├── schema.md                # Definição dos campos
+│   └── seed.md                  # Dados iniciais
+│
+└── test/                        # (TODO) Testes
+    ├── unit/
+    ├── integration/
+    └── e2e/
 ```
 
 ---
 
-## Funcionamento Offline
+## 🗂️ Planilhas Google Sheets
 
-O aplicativo devera permitir que o tecnico trabalhe sem internet.
+| Planilha | Descrição | Status |
+|----------|-----------|--------|
+| `usuarios` | Perfis de usuários (técnicos, gestores, admin) | 📋 Schema apenas |
+| `predios` | Prédios do campus | 📋 Schema apenas |
+| `chamados` | Registro principal de chamados | 📋 Schema apenas |
+| `historico_chamado` | Log de ações por chamado | 📋 Schema apenas |
+| `fotos_chamado` | Referências a fotos no Drive | 📋 Schema apenas |
+| `eventos_chuva` | Eventos climáticos detectados | 📋 Schema apenas |
+| `validacoes_pos_chuva` | Validações técnicas após chuva | 📋 Schema apenas |
+| `sync_logs` | Log de sincronizações | 📋 Schema apenas |
 
-Funcionalidades offline obrigatorias:
+---
 
-- visualizar chamados ja baixados;
-- preencher informacoes da execucao;
-- atualizar status;
-- tirar fotos;
-- anexar fotos;
-- finalizar processo localmente;
-- manter pendencias em fila de sincronizacao;
-- enviar tudo ao Google quando a internet voltar.
+## 🔄 Fluxo de Trabalho
 
-Quando houver internet:
+### 1️⃣ Abertura de Chamado
 
-```text
-App Flutter
-|
-v
-Envia fila pendente
-|
-v
-Apps Script valida dados
-|
-v
-Sheets recebe registros
-|
-v
-Drive recebe fotos
-|
-v
-App marca itens como sincronizados
+```
+Técnico no campo (offline)
+  ↓
+Seleciona prédio + descreve problema
+  ↓
+Tira fotos
+  ↓
+Salva em banco local
+  ↓ (quando houver internet)
+Sync service envia para GAS
+  ↓
+GAS valida e escreve em Sheets
+  ↓
+Gestor é notificado por email
+```
+
+### 2️⃣ Execução
+
+```
+Técnico recebe chamado
+  ↓
+Preenche descrição técnica + materiais
+  ↓
+Tira fotos do resultado
+  ↓
+Marca como "EM_EXECUCAO"
+  ↓ (com internet)
+Sincroniza com GAS
+  ↓
+GAS atualiza Sheets + envia fotos ao Drive
+```
+
+### 3️⃣ Conclusão
+
+```
+Técnico marca como "CONCLUIDO"
+  ↓
+Gestor aprova/rejeita
+  ↓
+Sistema inicia monitoramento climático
+  ↓ (trigger diário por 30 dias)
+Se chuva >= 5mm:
+  Verifica se há vazamentos novos
+  Se sim → REINCIDÊNCIA (notifica)
 ```
 
 ---
 
-## Planilhas Previstas
+## 📡 API (Flutter ↔ Google Apps Script)
 
-```text
-usuarios
-predios
-chamados
-historico_chamado
-fotos_chamado
-eventos_chuva
-validacoes_pos_chuva
-sync_logs
+### Endpoints
+
+| Método | Path | Descrição |
+|--------|------|-----------|
+| `GET` | `/api/chamados` | Lista chamados do técnico |
+| `POST` | `/api/chamados` | Cria novo chamado |
+| `GET` | `/api/chamados/:id` | Detalhes do chamado |
+| `PUT` | `/api/chamados/:id` | Atualiza status/descrição |
+| `POST` | `/api/sync` | Sincroniza fila pendente |
+| `POST` | `/api/fotos` | Upload de foto |
+| `GET` | `/api/config` | Configurações (predios, usuários) |
+
+### Resposta Padrão
+
+```json
+{
+  "status": "success",
+  "data": { /* payload */ },
+  "error": null,
+  "timestamp": "2026-05-24T10:30:00Z"
+}
+```
+
+### Erro Padrão
+
+```json
+{
+  "status": "error",
+  "data": null,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Email inválido"
+  },
+  "timestamp": "2026-05-24T10:30:00Z"
+}
 ```
 
 ---
 
-## Monitoramento Climatico
+## 🌦️ Monitoramento Climático
 
-O sistema usara a API Open-Meteo para consultar precipitacao acumulada.
+**API:** Open-Meteo (gratuita, sem autenticação)  
+**Endpoint:** `https://api.open-meteo.com/v1/forecast`
 
-Configuracao base:
+**Configuração:**
+- Latitude: -23.3045 (Londrina)
+- Longitude: -51.1696 (Londrina)
+- Timezone: America/Sao_Paulo
+- Variável: `precipitation_sum` (mm)
+- Threshold: ≥ 5 mm
 
-```text
-Cidade: Londrina/PR
-Timezone: America/Sao_Paulo
-Variavel: precipitation_sum
-Threshold: chuva >= 5 mm
-```
-
-Fluxo:
-
-```text
-Trigger diario no Apps Script
-|
-v
-Consulta Open-Meteo
-|
-v
-Verifica volume de chuva
-|
-v
-Busca chamados concluidos recentemente
-|
-v
-Cria validacao tecnica
-|
-v
-Envia notificacoes
-```
+**Trigger:** Diário (Google Apps Script time-driven trigger)
 
 ---
 
-## Workflow Git
+## 🔐 Segurança
 
-Branches principais:
+- ✅ Login com conta Google institucional
+- ✅ Controle de acesso por perfil (técnico, gestor, admin)
+- ✅ Auditoria de alterações (histórico_chamado)
+- ✅ Fotos armazenadas no Google Drive (seguro)
+- ✅ Sem dados sensíveis em banco local do celular
 
-```text
-main    = versao principal
-segunda = trabalho deste PC
-dev     = trabalho do outro PC
+---
+
+## 📋 Status Atual
+
+| Item | Status | Próximo Passo |
+|------|--------|--------------|
+| PRD + Arquitetura | ✅ Documentado | Implementação |
+| Schema de Sheets | 📋 Rascunho | Finalizar + validar |
+| GAS (estrutura) | 🔨 Em design | Código base |
+| Flutter (estrutura) | 🔨 Em design | Código base |
+| Testes | ❌ Não iniciado | Adicionar TDD |
+| Deploy | ❌ Não iniciado | CI/CD setup |
+
+---
+
+## 🚀 Próximos Passos
+
+### Fase 1 (MVP)
+
+- [ ] Finalizar schema das Sheets
+- [ ] Implementar GAS (controllers → services → repositories)
+- [ ] Implementar Flutter (models → repositories → services → UI)
+- [ ] Integração offline-first (SQLite + sync queue)
+- [ ] Testes unitários (80%+ coverage)
+
+### Fase 2
+
+- [ ] Dashboard web (HTML Service)
+- [ ] QR Code para identificar prédios
+- [ ] Inspeções preventivas agendadas
+
+### Fase 3
+
+- [ ] IA preditiva (padrões de vazamentos)
+- [ ] Análise histórica avançada
+- [ ] Expansão para manutenção predial geral
+
+---
+
+## 🎯 Padrão de Código
+
+Seguir PADRÃO V6 ARQUITETURA:
+
+```
+Route → Controller → Service → Repository → Sheets/Drive/SQLite
 ```
 
-Antes de trabalhar:
+**Regras:**
+- ✅ Sem duplicação de lógica
+- ✅ Repository = ÚNICO acesso a dados
+- ✅ Versão em cada arquivo: `// @version:1.0.0`
+- ✅ API response padrão (status, data, error, timestamp)
+- ✅ Try/catch completo em todas as chamadas externas
+- ✅ Sem placeholders ou pseudo-código
+
+---
+
+## 🛠️ Desenvolvimento
+
+### Setup Inicial
 
 ```bash
-git pull
+# Clonar repositório
+git clone <repo>
+cd Chuva
+
+# Flutter
+cd app
+flutter pub get
+
+# GAS (usar clasp)
+cd ../gas
+npm install -g @google/clasp
+clasp clone <SCRIPT_ID>
 ```
 
-Depois de alterar arquivos:
+### Branches
+
+- `main` → versão estável
+- `segunda` → trabalho deste PC
+- `dev` → trabalho do outro PC
+
+### Commits
 
 ```bash
-git status
-git add .
-git commit -m "Mensagem do commit"
-git push
+# Seguir conventional commits
+git commit -m "feat: adiciona sincronização offline"
+git commit -m "fix: corrige validação de email no GAS"
 ```
-
-Tambem existe a skill local:
-
-```text
-gita
-```
-
-Use `gita` para revisar mudancas, criar commit e enviar para o GitHub com seguranca.
 
 ---
 
-## Status Atual
+## 📞 Contato
 
-O projeto esta em fase de definicao de arquitetura e documentacao inicial.
+**Responsável:** Fabio Dias  
+**Email:** (conforme Google Workspace)  
+**Discord/Slack:** (conforme time)
 
-Proximos passos:
+---
 
-- criar documentacao em `docs/`;
-- definir schema das planilhas;
-- criar estrutura inicial do Apps Script;
-- criar estrutura inicial do Flutter;
-- implementar sincronizacao offline;
-- implementar monitoramento climatico.
+## 📜 Referências
+
+- [PRD Completo](./prd.md)
+- [Arquitetura Técnica](./docs/arquitetura.md)
+- [API Reference](./docs/api.md)
+- [Schema Sheets](./sheets/schema.md)
+
+---
+
+**Última atualização:** 2026-05-24  
+**Versão:** 2.0.0
